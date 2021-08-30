@@ -23,28 +23,66 @@ data:
 
       # Monitoring ml-pipeline (aka Kubeflow Pipelines API server)
       - job_name: 'ml-pipeline'
-        scrape_interval: 60s
+        scrape_interval: 15s
         static_configs:
           - targets: ['ml-pipeline.kubeflow:8888']
       
       # Monitoring katib-controller
       - job_name: 'katib-controller'
-        scrape_interval: 60s
+        scrape_interval: 15s
+        scheme: http
         static_configs:
           - targets: ['katib-controller.kubeflow:8080']
 
       # Monitoring katib-controller
       - job_name: 'kfserving-controller-manager-metrics-service'
-        scrape_interval: 60s
+        scrape_interval: 15s
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
         static_configs:
           - targets: ['kfserving-controller-manager-metrics-service.kubeflow:8443']
 
       # Monitoring TF and around
       - job_name: 'learning-engines'
-        scrape_interval: 60s
+        scrape_interval: 15s
         static_configs:
-          - targets: ['pytorch-operator.kubeflow:8443', 'tensorboard-controller-controller-manager-metrics-service.kubeflow:8443', 'tf-job-operator.kubeflow:8443']
+          - targets: ['pytorch-operator.kubeflow:8443', 'tf-job-operator.kubeflow:8443']
       
+      # Monitoring TF and around
+      - job_name: 'learning-engines-https'
+        scrape_interval: 15s
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        static_configs:
+          - targets: ['tensorboard-controller-controller-manager-metrics-service.kubeflow:8443']
+
+      # Monitoring pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
 
 kind: ConfigMap
 metadata:
